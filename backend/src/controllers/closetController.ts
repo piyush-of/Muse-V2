@@ -143,24 +143,24 @@ async function updateStyleDNAAfterUpload(userId: number) {
     await prisma.styleProfile.upsert({
       where: { userId },
       update: {
-        topColors,
-        traits: {
+        topColorsString: JSON.stringify(topColors),
+        traitsString: JSON.stringify({
           "relaxed-structured": relaxedStructured,
           "neutral-bold": 0.5,
           "minimal-maximal": totalCount > 15 ? 0.8 : 0.4,
           "heritage-modern": 0.5
-        },
+        }),
         lastComputedAt: new Date()
       },
       create: {
         userId,
-        topColors,
-        traits: {
+        topColorsString: JSON.stringify(topColors),
+        traitsString: JSON.stringify({
           "relaxed-structured": relaxedStructured,
           "neutral-bold": 0.5,
           "minimal-maximal": totalCount > 15 ? 0.8 : 0.4,
           "heritage-modern": 0.5
-        }
+        })
       }
     });
   } catch (err) {

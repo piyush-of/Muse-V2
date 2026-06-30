@@ -50,10 +50,10 @@ export async function compileUserDailyCapsule(userId: number, dateStr: string): 
     const shoe = getRand(shoes) || getRand(items);
     const outer = optionIdx % 2 === 0 ? getRand(outerwear) : null; // Outerwear optional depending on look
 
-    if (top) { selectedIds.push(top.id); selectedItems.push({ name: top.name, category: 'Tops' }); }
-    if (bottom) { selectedIds.push(bottom.id); selectedItems.push({ name: bottom.name, category: 'Bottoms' }); }
-    if (shoe) { selectedIds.push(shoe.id); selectedItems.push({ name: shoe.name, category: 'Shoes' }); }
-    if (outer) { selectedIds.push(outer.id); selectedItems.push({ name: outer.name, category: 'Outerwear' }); }
+    if (top) { selectedIds.push(top.id); selectedItems.push({ name: `${top.color} ${top.category.toLowerCase()}`, category: 'Tops' }); }
+    if (bottom) { selectedIds.push(bottom.id); selectedItems.push({ name: `${bottom.color} ${bottom.category.toLowerCase()}`, category: 'Bottoms' }); }
+    if (shoe) { selectedIds.push(shoe.id); selectedItems.push({ name: `${shoe.color} ${shoe.category.toLowerCase()}`, category: 'Shoes' }); }
+    if (outer) { selectedIds.push(outer.id); selectedItems.push({ name: `${outer.color} ${outer.category.toLowerCase()}`, category: 'Outerwear' }); }
 
     if (selectedIds.length === 0) continue;
 
@@ -80,7 +80,7 @@ export async function compileUserDailyCapsule(userId: number, dateStr: string): 
       data: {
         userId,
         date: dateStr,
-        itemIds: o.itemIds,
+        itemIdsString: o.itemIds.join(','),
         reasoning: o.reasoning,
         status: 'pending'
       }

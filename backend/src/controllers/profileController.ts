@@ -20,13 +20,13 @@ export async function getStyleProfile(req: AuthenticatedRequest, res: Response) 
       profile = await prisma.styleProfile.create({
         data: {
           userId,
-          traits: {
+          traitsString: JSON.stringify({
             "relaxed-structured": 0.5,
             "neutral-bold": 0.5,
             "minimal-maximal": 0.5,
             "heritage-modern": 0.5
-          },
-          topColors: []
+          }),
+          topColorsString: JSON.stringify([])
         }
       });
     }
@@ -57,8 +57,8 @@ export async function getStyleProfile(req: AuthenticatedRequest, res: Response) 
 
     // 4. Return combined style payload
     return res.status(200).json({
-      traits: profile.traits,
-      topColors: profile.topColors,
+      traits: JSON.parse(profile.traitsString),
+      topColors: JSON.parse(profile.topColorsString),
       lastComputedAt: profile.lastComputedAt,
       metrics: {
         acceptanceRate,

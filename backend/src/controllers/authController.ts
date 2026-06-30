@@ -40,13 +40,13 @@ export async function signup(req: Request, res: Response) {
       await tx.styleProfile.create({
         data: {
           userId: newUser.id,
-          traits: {
+          traitsString: JSON.stringify({
             "relaxed-structured": 0.5,
             "neutral-bold": 0.5,
             "minimal-maximal": 0.5,
             "heritage-modern": 0.5
-          },
-          topColors: []
+          }),
+          topColorsString: JSON.stringify([])
         }
       });
 

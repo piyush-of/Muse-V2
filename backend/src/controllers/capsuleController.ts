@@ -35,13 +35,15 @@ export async function getTodayCapsule(req: AuthenticatedRequest, res: Response) 
     // This allows the frontend to render names, colors, brands, and photos easily.
     const populatedOutfits = await Promise.all(
       outfits.map(async (outfit) => {
+        const ids = outfit.itemIdsString ? outfit.itemIdsString.split(',').map(Number) : [];
         const garments = await prisma.closetItem.findMany({
           where: {
-            id: { in: outfit.itemIds }
+            id: { in: ids }
           }
         });
         return {
           ...outfit,
+          itemIds: ids,
           garments
         };
       })
@@ -94,8 +96,9 @@ export async function acceptOutfit(req: AuthenticatedRequest, res: Response) {
         data: { status: 'pending' }
       });
 
+      const ids = outfit.itemIdsString ? outfit.itemIdsString.split(',').map(Number) : [];
       // Register WearEvents for all items in the accepted outfit
-      const eventsData = outfit.itemIds.map(itemId => ({
+      const eventsData = ids.map(itemId => ({
         userId,
         closetItemId: itemId,
         outfitId: outfitId,

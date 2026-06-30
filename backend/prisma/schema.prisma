@@ -1,5 +1,5 @@
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -47,7 +47,7 @@ model Outfit {
   id              Int         @id @default(autoincrement())
   userId          Int
   date            String      // Format: YYYY-MM-DD
-  itemIds         Int[]       // Array of ClosetItem IDs
+  itemIdsString   String      // Comma-separated ClosetItem IDs
   reasoning       String
   status          String      // "pending" | "accepted" | "rejected"
   rejectionReason String?
@@ -57,10 +57,10 @@ model Outfit {
 }
 
 model StyleProfile {
-  id             Int      @id @default(autoincrement())
-  userId         Int      @unique
-  traits         Json
-  topColors      Json
-  lastComputedAt DateTime @default(now())
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id              Int      @id @default(autoincrement())
+  userId          Int      @unique
+  traitsString    String   @default("{}")
+  topColorsString String   @default("[]")
+  lastComputedAt  DateTime @default(now())
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
