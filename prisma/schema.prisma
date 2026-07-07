@@ -1,0 +1,70 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id           String        @id @default(uuid())
+  email        String        @unique
+  name         String?
+  passwordHash String
+  timezone     String        @default("UTC")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  closetItems  ClosetItem[]
+  wearEvents   WearEvent[]
+  outfits      Outfit[]
+  styleProfile StyleProfile?
+}
+
+model ClosetItem {
+  id           String      @id @default(uuid())
+  userId       String
+  photoUrl     String
+  thumbnailUrl String
+  category     String      // Outerwear, Tops, Bottoms, Shoes, Accessories
+  color        String      // Hex color code
+  season       String      // Spring, Summer, Autumn, Winter
+  formality    String      // Formal, Smart Casual, Casual
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wearEvents   WearEvent[]
+}
+
+model WearEvent {
+  id           String     @id @default(uuid())
+  closetItemId String
+  userId       String
+  wornAt       DateTime   @default(now())
+  outfitId     String?
+  closetItem   ClosetItem @relation(fields: [closetItemId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  outfit       Outfit?    @relation(fields: [outfitId], references: [id], onDelete: SetNull)
+}
+
+model Outfit {
+  id              String      @id @default(uuid())
+  userId          String
+  date            String      // Format: YYYY-MM-DD
+  itemIds         String[]    // Array of ClosetItem UUIDs
+  reasoning       String
+  status          String      // pending | accepted | rejected
+  rejectionReason String?
+  createdAt       DateTime    @default(now())
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  wearEvents      WearEvent[]
+}
+
+model StyleProfile {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  traits         Json     // E.g. {"relaxed-structured": 0.5, "neutral-bold": 0.5, "minimal-maximal": 0.5, "heritage-modern": 0.5}
+  topColors      String[] // List of hex colors
+  lastComputedAt DateTime @default(now())
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
