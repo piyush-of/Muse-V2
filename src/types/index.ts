@@ -14,15 +14,15 @@ export interface ClosetItem {
   color: string;
   season: string;
   formality: string;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: string | Date;
+  updatedAt: string | Date;
 }
 
 export interface WearEvent {
   id: string;
   closetItemId: string;
   userId: string;
-  wornAt: string;
+  wornAt: string | Date;
   outfitId?: string | null;
 }
 
@@ -34,7 +34,7 @@ export interface Outfit {
   reasoning: string;
   status: 'pending' | 'accepted' | 'rejected';
   rejectionReason?: string | null;
-  createdAt: string;
+  createdAt: string | Date;
   garments?: ClosetItem[];
 }
 
@@ -49,7 +49,7 @@ export interface StyleProfile {
     [key: string]: number;
   };
   topColors: string[];
-  lastComputedAt: string;
+  lastComputedAt: string | Date;
 }
 
 export interface DashboardMetrics {

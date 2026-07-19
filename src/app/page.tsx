@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
+import { motion, type Variants } from 'framer-motion';
 import { Sparkles, ArrowRight, Camera, Cpu, Compass, Shield, HelpCircle, Layers, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import LivingBackground from '@/components/ui/LivingBackground';
@@ -15,7 +15,7 @@ export default function LandingPage() {
     setFaqOpen(faqOpen === index ? null : index);
   };
 
-  const containerVariants = {
+  const containerVariants: Variants = {
     hidden: { opacity: 0 },
     visible: {
       opacity: 1,
@@ -25,12 +25,12 @@ export default function LandingPage() {
     },
   };
 
-  const itemVariants = {
+  const itemVariants: Variants = {
     hidden: { opacity: 0, y: 20 },
     visible: {
       opacity: 1,
       y: 0,
-      transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] },
+      transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] as const },
     },
   };
 

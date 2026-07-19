@@ -45,7 +45,7 @@ export function Dialog({ open, onOpenChange, title, description, children }: Dia
             initial={{ opacity: 0, scale: 0.95, y: 15 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 15 }}
-            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] as const }}
             className="relative w-full max-w-lg overflow-hidden rounded-2xl bg-card border border-border-strong p-6 shadow-xl z-10"
           >
             {/* Close button icon */}

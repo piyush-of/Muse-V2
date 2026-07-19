@@ -3,6 +3,7 @@
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { generateOutfitReasoning } from '@/lib/gemini';
+import type { Outfit } from '@/types';
 import { revalidatePath } from 'next/cache';
 
 /**
@@ -32,7 +33,7 @@ export async function getTodayOutfits() {
     }
 
     // 3. Populate full garment metadata for each outfit
-    const populated = await Promise.all(
+    const populated: Outfit[] = await Promise.all(
       outfits.map(async (outfit) => {
         const garments = await prisma.closetItem.findMany({
           where: {
@@ -41,6 +42,7 @@ export async function getTodayOutfits() {
         });
         return {
           ...outfit,
+          status: outfit.status as Outfit['status'],
           garments,
         };
       })
