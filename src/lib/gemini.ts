@@ -59,21 +59,61 @@ export async function generateOutfitReasoning(
   return typeof raw === 'string' ? raw : 'This outfit blends the available wardrobe pieces well for the planned day.';
 }
 
+/**
+ * Strips a data: URL prefix (e.g. "data:image/png;base64,") if present,
+ * since the Gemini API expects raw base64 payload only.
+ */
+function stripDataUrlPrefix(base64Image: string): string {
+  const commaIndex = base64Image.indexOf(',');
+  if (base64Image.startsWith('data:') && commaIndex !== -1) {
+    return base64Image.slice(commaIndex + 1);
+  }
+  return base64Image;
+}
+
 export async function tagGarmentImage(base64Image: string, mimeType: string) {
-  const prompt = `You are a fashion image tagger. Analyze the supplied image conceptually and return ONLY a JSON object with shape {"category": "Tops|Bottoms|Outerwear|Shoes|Accessories", "color": "...", "season": "Spring|Summer|Autumn|Winter|All Season", "formality": "Casual|Smart Casual|Formal"}.\n\nMime type: ${mimeType}.\nBase64 length: ${base64Image.length}`;
+  const prompt = `You are a fashion image tagger. Look at the supplied garment photo and return ONLY a JSON object with shape {"category": "Tops|Bottoms|Outerwear|Shoes|Accessories", "color": "a hex color code for the dominant fabric color", "season": "Spring|Summer|Autumn|Winter|All Season", "formality": "Casual|Smart Casual|Formal"}. Base your answer on what is actually visible in the image.`;
 
-  const raw = await askGemini(prompt);
-  const parsed = parseGeminiJson<{
-    category?: string;
-    color?: string;
-    season?: string;
-    formality?: string;
-  }>(raw || '{}');
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            {
+              inlineData: {
+                mimeType,
+                data: stripDataUrlPrefix(base64Image),
+              },
+            },
+            { text: prompt },
+          ],
+        },
+      ],
+    });
 
-  return {
-    category: parsed?.category || 'Tops',
-    color: parsed?.color || 'Neutral',
-    season: parsed?.season || 'All Season',
-    formality: parsed?.formality || 'Casual',
-  };
+    const raw = response.text;
+    const parsed = parseGeminiJson<{
+      category?: string;
+      color?: string;
+      season?: string;
+      formality?: string;
+    }>(raw || '{}');
+
+    return {
+      category: parsed?.category || 'Tops',
+      color: parsed?.color || '#808080',
+      season: parsed?.season || 'All Season',
+      formality: parsed?.formality || 'Casual',
+    };
+  } catch (error) {
+    console.error('tagGarmentImage error:', error);
+    return {
+      category: 'Tops',
+      color: '#808080',
+      season: 'All Season',
+      formality: 'Casual',
+    };
+  }
 }

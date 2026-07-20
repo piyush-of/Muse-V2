@@ -12,16 +12,11 @@ import {
   Briefcase,
   Search,
   User,
-  Settings,
-  HelpCircle,
-  CreditCard,
-  Mail,
-  Shield,
   Menu,
   X,
-  Sparkles
 } from 'lucide-react';
 import LivingBackground from '@/components/ui/LivingBackground';
+import { updateUserLocation } from '@/actions/settings';
 
 interface DashboardShellProps {
   user: {
@@ -29,10 +24,11 @@ interface DashboardShellProps {
     email: string;
     name?: string | null;
   };
+  hasLocation?: boolean;
   children: React.ReactNode;
 }
 
-export default function DashboardShell({ user, children }: DashboardShellProps) {
+export default function DashboardShell({ user, hasLocation = false, children }: DashboardShellProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [isDark, setIsDark] = useState<boolean>(true);
@@ -53,6 +49,22 @@ export default function DashboardShell({ user, children }: DashboardShellProps) 
     }
   }, []);
 
+  // One-time, best-effort location capture so daily capsule weather is real
+  // for this person instead of the default fallback city. Silently no-ops if
+  // the browser has no geolocation support or the person denies permission.
+  useEffect(() => {
+    if (hasLocation || !('geolocation' in navigator)) return;
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        updateUserLocation(position.coords.latitude, position.coords.longitude).catch(() => {});
+      },
+      () => {
+        /* permission denied or unavailable — the default fallback city still works fine */
+      },
+      { timeout: 8000 }
+    );
+  }, [hasLocation]);
+
   const toggleTheme = () => {
     const nextDark = !isDark;
     setIsDark(nextDark);
@@ -66,22 +78,14 @@ export default function DashboardShell({ user, children }: DashboardShellProps) 
     }
   };
 
+  // Four tabs, matching the product vision's IA (Home / Closet / Discover / Profile) —
+  // keep this list in sync with what actually has a page.tsx under src/app/dashboard.
   const navItems = [
     { href: '/dashboard', label: 'Today', icon: Layers },
     { href: '/dashboard/closet', label: 'Wardrobe', icon: Briefcase },
     { href: '/dashboard/discover', label: 'Discover', icon: Search },
     { href: '/dashboard/profile', label: 'Style DNA', icon: User },
-    { href: '/dashboard/pricing', label: 'Pricing', icon: CreditCard },
-    { href: '/dashboard/about', label: 'Philosophy', icon: HelpCircle },
-    { href: '/dashboard/contact', label: 'Contact', icon: Mail },
-    { href: '/dashboard/settings', label: 'Settings', icon: Settings },
   ];
-
-  // Admin access (stub based on email prefix)
-  const isAdmin = user.email.startsWith('admin') || user.email === 'piyush@muse.ai';
-  if (isAdmin) {
-    navItems.push({ href: '/dashboard/admin', label: 'Admin Panel', icon: Shield });
-  }
 
   const handleSignOut = async () => {
     await signOut({ callbackUrl: '/' });

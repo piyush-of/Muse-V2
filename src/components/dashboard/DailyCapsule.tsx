@@ -1,12 +1,15 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, useMotionValue, useTransform, useAnimation } from 'framer-motion';
-import { Check, X, Sparkles, AlertCircle, RefreshCw, Layers } from 'lucide-react';
+import { Check, X, Sparkles, RefreshCw, Layers, CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Dialog } from '@/components/ui/Dialog';
-import { acceptOutfit, rejectOutfit } from '@/actions/capsule';
+import { getTodayOutfits, acceptOutfit, rejectOutfit, regenerateTodayCapsule } from '@/actions/capsule';
+import { getTodayContext, updateTodayContext } from '@/actions/context';
+import { useCapsuleStore } from '@/store/capsuleStore';
 
 interface Garment {
   id: string;
@@ -33,56 +36,110 @@ interface DailyCapsuleProps {
 }
 
 export default function DailyCapsule({ initialOutfits }: DailyCapsuleProps) {
-  const [outfits, setOutfits] = useState<Outfit[]>(initialOutfits);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [acceptedOutfit, setAcceptedOutfit] = useState<Outfit | null>(
-    initialOutfits.find(o => o.status === 'accepted') || null
-  );
-  
+  const queryClient = useQueryClient();
+
+  // Server data lives in React Query (cached, refetched on mutation) —
+  // seeded with the server-rendered initial data so there's zero load latency.
+  const { data } = useQuery({
+    queryKey: ['todayOutfits'],
+    queryFn: async () => {
+      const res = await getTodayOutfits();
+      if (!res.success) throw new Error(res.error || 'Failed to load outfits');
+      return res.outfits || [];
+    },
+    initialData: initialOutfits,
+  });
+
+  const { data: todayContext } = useQuery({
+    queryKey: ['todayContext'],
+    queryFn: async () => {
+      const res = await getTodayContext();
+      return res.success ? res.calendarEvent : '';
+    },
+    initialData: '',
+  });
+
+  const outfits = data || [];
+
+  // Swipe-deck UI state stays local (Zustand) — it's ephemeral and must never
+  // wait on a network round trip.
+  const { currentIndex, acceptedOutfitId, nextCard, setAcceptedOutfitId, reset } = useCapsuleStore();
+
+  useEffect(() => {
+    // If a fresh compile already produced an accepted outfit (rare), reflect it.
+    const alreadyAccepted = initialOutfits.find(o => o.status === 'accepted');
+    if (alreadyAccepted) setAcceptedOutfitId(alreadyAccepted.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [pendingAction, setPendingAction] = useState<string | null>(null);
+  const [contextDraft, setContextDraft] = useState('');
+  const [editingContext, setEditingContext] = useState(false);
+
+  useEffect(() => {
+    setContextDraft(todayContext || '');
+  }, [todayContext]);
 
   const confettiCanvasRef = useRef<HTMLCanvasElement>(null);
   const animFrameRef = useRef<number | null>(null);
 
   const activeOutfit = outfits[currentIndex] || null;
+  const acceptedOutfit = outfits.find(o => o.id === acceptedOutfitId) || null;
 
-  // Next outfit or show wrap-up
-  const nextCard = () => {
-    setCurrentIndex(prev => prev + 1);
-  };
-
-  const handleAccept = async (outfitId: string) => {
-    try {
-      const res = await acceptOutfit(outfitId);
+  const acceptMutation = useMutation({
+    mutationFn: (outfitId: string) => acceptOutfit(outfitId),
+    onSuccess: (res, outfitId) => {
       if (res.success) {
-        setAcceptedOutfit(outfits.find(o => o.id === outfitId) || null);
+        setAcceptedOutfitId(outfitId);
         triggerConfetti();
+        queryClient.invalidateQueries({ queryKey: ['todayOutfits'] });
       }
-    } catch (err) {
-      console.error(err);
-    }
-  };
+    },
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: ({ outfitId, reason }: { outfitId: string; reason: string }) => rejectOutfit(outfitId, reason),
+    onSuccess: (res) => {
+      if (res.success) {
+        setRejectOpen(false);
+        setRejectReason('');
+        setPendingAction(null);
+        nextCard();
+        queryClient.invalidateQueries({ queryKey: ['todayOutfits'] });
+      }
+    },
+  });
+
+  const contextMutation = useMutation({
+    mutationFn: (calendarEvent: string) => updateTodayContext(calendarEvent),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['todayContext'] });
+      setEditingContext(false);
+    },
+  });
+
+  const regenerateMutation = useMutation({
+    mutationFn: () => regenerateTodayCapsule(),
+    onSuccess: (res) => {
+      if (res.success) {
+        reset();
+        queryClient.invalidateQueries({ queryKey: ['todayOutfits'] });
+      }
+    },
+  });
+
+  const handleAccept = (outfitId: string) => acceptMutation.mutate(outfitId);
 
   const handleRejectClick = (outfitId: string) => {
     setPendingAction(outfitId);
     setRejectOpen(true);
   };
 
-  const confirmRejection = async () => {
+  const confirmRejection = () => {
     if (!pendingAction) return;
-    try {
-      const res = await rejectOutfit(pendingAction, rejectReason);
-      if (res.success) {
-        setRejectOpen(false);
-        setRejectReason('');
-        setPendingAction(null);
-        nextCard();
-      }
-    } catch (err) {
-      console.error(err);
-    }
+    rejectMutation.mutate({ outfitId: pendingAction, reason: rejectReason });
   };
 
   // Drag physics setup
@@ -95,15 +152,12 @@ export default function DailyCapsule({ initialOutfits }: DailyCapsuleProps) {
     if (!activeOutfit) return;
     const threshold = 120;
     if (info.offset.x > threshold) {
-      // Swiped Right - Accept
       await controls.start({ x: 500, opacity: 0 });
       handleAccept(activeOutfit.id);
     } else if (info.offset.x < -threshold) {
-      // Swiped Left - Reject
       await controls.start({ x: -500, opacity: 0 });
       handleRejectClick(activeOutfit.id);
     } else {
-      // Return to center
       controls.start({ x: 0, opacity: 1 });
     }
   };
@@ -144,7 +198,7 @@ export default function DailyCapsule({ initialOutfits }: DailyCapsuleProps) {
         p.y += p.vy;
         p.vy += p.gravity;
         p.alpha -= 0.012;
-        
+
         if (p.alpha > 0) {
           alive = true;
           ctx.save();
@@ -171,8 +225,46 @@ export default function DailyCapsule({ initialOutfits }: DailyCapsuleProps) {
   }, []);
 
   return (
-    <div className="relative w-full min-h-[70vh] flex flex-col items-center justify-center">
+    <div className="relative w-full min-h-[70vh] flex flex-col items-center justify-center gap-6">
       <canvas ref={confettiCanvasRef} className="fixed inset-0 pointer-events-none z-50 w-full h-full" />
+
+      {/* TODAY'S CONTEXT — the calendar note that actually feeds the reasoning */}
+      <div className="w-full max-w-sm">
+        {editingContext ? (
+          <div className="flex items-center gap-2">
+            <input
+              autoFocus
+              value={contextDraft}
+              onChange={(e) => setContextDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') contextMutation.mutate(contextDraft);
+                if (e.key === 'Escape') setEditingContext(false);
+              }}
+              placeholder="What's today? e.g. client pitch, gym after work..."
+              className="flex-1 text-xs px-3 py-2 rounded-xl bg-card border border-border focus:outline-none focus:border-accent text-foreground placeholder-muted-foreground"
+            />
+            <Button size="sm" onClick={() => contextMutation.mutate(contextDraft)}>Save</Button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setEditingContext(true)}
+              className="flex-1 flex items-center gap-2 text-[11px] text-muted-foreground hover:text-foreground transition-colors px-3 py-2 rounded-xl border border-dashed border-border/70 hover:border-border min-w-0"
+            >
+              <CalendarDays size={12} className="flex-shrink-0" />
+              <span className="truncate">{todayContext || "Add today's plan (optional) — helps tailor the reasoning"}</span>
+            </button>
+            <button
+              onClick={() => regenerateMutation.mutate()}
+              disabled={regenerateMutation.isPending}
+              title="Regenerate today's capsule with the latest context"
+              className="w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-xl border border-border bg-card/45 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+            >
+              <RefreshCw size={12} className={regenerateMutation.isPending ? 'animate-spin' : ''} />
+            </button>
+          </div>
+        )}
+      </div>
 
       {acceptedOutfit ? (
         <Card className="max-w-md w-full text-center p-10 space-y-6 bg-card/65 backdrop-blur-md border border-border/80 shadow-xl">
@@ -196,7 +288,7 @@ export default function DailyCapsule({ initialOutfits }: DailyCapsuleProps) {
 
           <p className="text-[10px] text-muted-foreground italic">"{acceptedOutfit.reasoning}"</p>
 
-          <Button variant="outline" size="sm" onClick={() => setAcceptedOutfit(null)} className="w-full">
+          <Button variant="outline" size="sm" onClick={() => setAcceptedOutfitId(null)} className="w-full">
             View Suggestions Deck
           </Button>
         </Card>
@@ -273,6 +365,16 @@ export default function DailyCapsule({ initialOutfits }: DailyCapsuleProps) {
           <p className="text-xs text-muted-foreground">
             You've reviewed all suggested outfit combinations for today. Check back tomorrow for a new capsule!
           </p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => regenerateMutation.mutate()}
+            disabled={regenerateMutation.isPending}
+            className="w-full flex items-center justify-center gap-2"
+          >
+            <RefreshCw size={13} className={regenerateMutation.isPending ? 'animate-spin' : ''} />
+            Regenerate Today's Capsule
+          </Button>
         </Card>
       )}
 
@@ -300,7 +402,7 @@ export default function DailyCapsule({ initialOutfits }: DailyCapsuleProps) {
             <Button variant="outline" onClick={() => setRejectOpen(false)} className="flex-1">
               Cancel
             </Button>
-            <Button onClick={confirmRejection} className="flex-1">
+            <Button onClick={confirmRejection} disabled={rejectMutation.isPending} className="flex-1">
               Log Rejection
             </Button>
           </div>

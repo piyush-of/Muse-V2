@@ -65,8 +65,16 @@ export async function updateClosetItem(id: string, data: {
   const userId = session.user.id;
 
   try {
-    const updated = await prisma.closetItem.update({
+    const existing = await prisma.closetItem.findFirst({
       where: { id, userId },
+    });
+
+    if (!existing) {
+      throw new Error('Garment not found');
+    }
+
+    const updated = await prisma.closetItem.update({
+      where: { id },
       data,
     });
 
@@ -92,8 +100,16 @@ export async function deleteClosetItem(id: string) {
   const userId = session.user.id;
 
   try {
-    await prisma.closetItem.delete({
+    const existing = await prisma.closetItem.findFirst({
       where: { id, userId },
+    });
+
+    if (!existing) {
+      throw new Error('Garment not found');
+    }
+
+    await prisma.closetItem.delete({
+      where: { id },
     });
 
     await recalculateStyleDNA(userId);
