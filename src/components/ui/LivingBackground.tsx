@@ -144,5 +144,12 @@ export default function LivingBackground({ isDark }: LivingBackgroundProps) {
     };
   }, []);
 
-  return <canvas ref={canvasRef} id="living-bg" aria-hidden="true" />;
+  return (
+    <canvas
+      ref={canvasRef}
+      id="living-bg"
+      aria-hidden="true"
+      className="fixed inset-0 -z-10 w-full h-full pointer-events-none"
+    />
+  );
 }
