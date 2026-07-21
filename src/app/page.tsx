@@ -106,9 +106,9 @@ export default function LandingPage() {
             variants={itemVariants}
             className="pt-12 max-w-4xl mx-auto"
           >
-            <div className="relative aspect-[16/9] rounded-2xl overflow-hidden glass-panel border border-border/80 shadow-2xl p-2 bg-card/30">
+            <div className="relative aspect-video rounded-2xl overflow-hidden glass-panel border border-border/80 shadow-2xl p-2 bg-card/30">
               <div className="w-full h-full rounded-xl bg-paper/60 border border-border/40 flex items-center justify-center overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-tr from-accent/5 to-transparent pointer-events-none" />
+                <div className="absolute inset-0 bg-linear-to-tr from-accent/5 to-transparent pointer-events-none" />
                 <div className="text-center p-8 space-y-4">
                   <div className="flex justify-center gap-3">
                     <div className="w-20 h-28 rounded-lg bg-card border border-border shadow-sm flex items-center justify-center text-accent/30 font-serif text-xl">Tops</div>
