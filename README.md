@@ -170,8 +170,7 @@ Deliberate scope decisions, not oversights:
 
 ## License
 
-Not yet set — add one before making the repo public if you care about how others can use the code.
-
+All Rights Preserved
 ---
 
 <div align="center">
